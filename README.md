@@ -36,9 +36,11 @@ Everything the notebooks produce is saved in `results/`:
 | Model | Validation AUC |
 | --- | --- |
 | Best single feature (`artist_followers`) | 0.875 |
-| Logistic regression | 0.9595 |
-| Random forest | 0.9662 |
-| FT-Transformer | 0.9677 |
-| **Gradient boosting** | **0.9699** |
+| Logistic regression | 0.9597 |
+| Random forest | 0.9663 |
+| FT-Transformer | 0.9678 |
+| **Gradient boosting** | **0.9706** |
 
 The ensembles did not beat gradient boosting by a meaningful margin, so the submission uses gradient boosting on its own.
+
+All models use a "song key" (artist + cleaned title) that links re-releases of the same song; see the EDA section *Re-released songs*. It added +0.0008 AUC to gradient boosting on each of the 5 CV folds.

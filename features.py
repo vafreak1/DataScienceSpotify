@@ -20,8 +20,9 @@ import pandas as pd
 # keywords in the song title that showed a clearly different hit rate in the EDA
 TITLE_KEYWORDS = ["feat", "remaster", "remix", "live", "karaoke", "instrumental", "version", "cover"]
 
-# categories that get a target encoding (one hit rate per artist / label / album)
-TE_COLUMNS = ["artist_name", "record_label", "album_name"]
+# categories that get a target encoding (one hit rate per artist / label / album / song)
+# 'artist_title' is not in the raw data - it is added by add_song_key() below
+TE_COLUMNS = ["artist_name", "record_label", "album_name", "artist_title"]
 
 # smoothing strength: how many 'average' songs we pretend each category already has.
 # Tested 1, 5, 20 in notebook 03 -> almost no difference in model AUC; 5 is a middle ground.
@@ -35,6 +36,20 @@ SMOOTHING = 5
 def split_genres(genre_strings):
     """'pop|dance pop' -> ['pop', 'dance pop'];  missing -> []"""
     return genre_strings.fillna("").str.split("|").apply(lambda genres: [g for g in genres if g])
+
+
+def add_song_key(df):
+    """
+    Add the column 'artist_title' = artist + cleaned song title.
+    The same song is often released several times (single, album, remaster, compilation).
+    Cleaning the title lets these copies share one key, e.g.
+      'Yesterday - Remastered 2009'  -> 'yesterday'
+      'Hey Jude (Live)'              -> 'hey jude'
+    """
+    title = df["track_name"].fillna("").str.lower()
+    title = title.str.replace(r"\(.*?\)|\[.*?\]", "", regex=True)  # drop text in (...) and [...]
+    title = title.str.split(" - ").str[0].str.strip()               # drop everything after ' - '
+    return df.assign(artist_title=df["artist_name"].astype(str) + " || " + title)
 
 
 def basic_features(df):
@@ -82,7 +97,7 @@ def basic_features(df):
 
 
 def count_features(df, all_rows):
-    """How many songs share this artist / label / album, counted in train + test together.
+    """How many songs share this artist / label / album / song key, counted in train + test together.
     This needs no labels, so using the test rows here is allowed."""
     out = pd.DataFrame(index=df.index)
     for col in TE_COLUMNS:
@@ -188,6 +203,10 @@ def build_features(fit_df, apply_dfs, all_rows, n_top_genres=150):
     """
     y, folds = fit_df["music_hit"], fit_df["fold"].to_numpy()
 
+    # add the 'artist_title' key to every DataFrame (used for its count and its target encoding)
+    fit_df, all_rows = add_song_key(fit_df), add_song_key(all_rows)
+    apply_dfs = [add_song_key(df) for df in apply_dfs]
+
     # the most frequent genres, decided on the fitting data only
     top_genres = split_genres(fit_df["artist_genres"]).explode().dropna().value_counts().index[:n_top_genres]
 
@@ -197,7 +216,7 @@ def build_features(fit_df, apply_dfs, all_rows, n_top_genres=150):
     X_fit = label_free(fit_df)
     X_apply = [label_free(df) for df in apply_dfs]
 
-    # target encodings for artist / label / album
+    # target encodings for artist / label / album / song
     for col in TE_COLUMNS:
         fit_enc, apply_enc = target_encode(fit_df[col], y, folds, [df[col] for df in apply_dfs])
         X_fit[f"{col}_te"] = fit_enc
