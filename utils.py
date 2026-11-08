@@ -9,12 +9,12 @@ from sklearn.metrics import roc_auc_score
 
 from features import build_features
 
-PRED_DIR = "predictions"  # every model saves its validation and test predictions here
+PRED_DIR = "results/predictions"  # every model saves its validation and test predictions here
 
 
 def load_features():
     """Load the data, apply the fixed split from notebook 02 and build the features from features.py."""
-    train = pd.read_csv("train.csv").merge(pd.read_csv("splits.csv"), on="id")
+    train = pd.read_csv("train.csv").merge(pd.read_csv("results/splits.csv"), on="id")
     test = pd.read_csv("test.csv")
     dev, valid = train[train["is_valid"] == 0], train[train["is_valid"] == 1]
 
@@ -25,7 +25,7 @@ def load_features():
 
 def baseline_auc():
     """The score to beat: best single feature on the validation set (artist_followers)."""
-    return pd.read_csv("baseline_scores.csv")["valid_auc"].max()
+    return pd.read_csv("results/baseline_scores.csv")["valid_auc"].max()
 
 
 def compare_to_baseline(model_name, y_valid, valid_pred):
